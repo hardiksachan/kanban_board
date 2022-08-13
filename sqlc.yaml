@@ -1,0 +1,10 @@
+version: "2"
+sql:
+  - schema: "postgres_migrations"
+    queries: "internal/users/repository/postgres/user/queries"
+    engine: "postgresql"
+    gen:
+      go:
+        package: "dao"
+        out: "internal/users/repository/postgres/user/dao"
+        sql_package: "pgx/v4"
