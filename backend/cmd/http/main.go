@@ -28,7 +28,7 @@ func main() {
 	port = ":" + port
 
 	pgUrl := os.Getenv("PG_URL")
-	logger.Info(fmt.Sprintf("Postgres URL in env: %s", pgUrl))
+	logger.Debug(fmt.Sprintf("Postgres URL in env: %s", pgUrl))
 
 	pg, err := pgxpool.Connect(context.Background(), pgUrl)
 	if err != nil {
@@ -51,6 +51,8 @@ func main() {
 	router.HandleFunc("/users/login", usersHandler.LogIn).Methods(http.MethodPost)
 	router.Handle("/users/logout", usersHandler.AuthMiddleware(http.HandlerFunc(usersHandler.LogOut))).Methods(http.MethodPost)
 
-	logger.Info(fmt.Sprintf("Starting server on port: %s", port))
+	logger.Debug(fmt.Sprintf("Starting server on port: %s", port))
+
+	// todo: graceful shutdown
 	log.Fatal(http.ListenAndServe(port, router))
 }

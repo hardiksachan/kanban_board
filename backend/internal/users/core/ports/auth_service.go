@@ -1,6 +1,7 @@
 package ports
 
 import (
+	"fmt"
 	"github.com/hardiksachan/kanban_board/backend/internal/users"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/core/domain"
 	"golang.org/x/crypto/bcrypt"
@@ -26,7 +27,7 @@ func (a *AuthService) SignUp(user *domain.User) (*domain.User, error) {
 		return nil, &users.Error{Op: op, Err: err}
 	}
 	if exists {
-		return nil, &users.Error{Op: op, Code: users.ECONFLICT, Message: "user with email exists"}
+		return nil, &users.Error{Op: op, Code: users.ECONFLICT, Message: fmt.Sprintf("user with email (%s) exists", user.Email)}
 	}
 
 	hashedPassword, err := HashPassword(user.Password)
@@ -48,7 +49,7 @@ func (a *AuthService) SignUp(user *domain.User) (*domain.User, error) {
 // returns ECONFLICT if passwords do not match
 func (a *AuthService) LogIn(email, password string) (*domain.Session, error) {
 	op := "ports.AuthService.Login"
-	msg := "email or password incorrect"
+	msg := fmt.Sprintf("email(%s) or password incorrect", email)
 
 	storedUser, err := a.userStore.FindByEmail(email)
 	if err != nil {
