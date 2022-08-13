@@ -1,7 +1,7 @@
 package ports
 
 import (
-	"kanban_board/internal/users/core/domain"
+	"github.com/hardiksachan/kanban_board/backend/internal/users/core/domain"
 )
 
 type UserStore interface {

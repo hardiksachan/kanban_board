@@ -1,6 +1,8 @@
 package ports
 
-import "kanban_board/internal/users/core/domain"
+import (
+	"github.com/hardiksachan/kanban_board/backend/internal/users/core/domain"
+)
 
 type SessionStore interface {
 	Create(userId string) (*domain.Session, error)

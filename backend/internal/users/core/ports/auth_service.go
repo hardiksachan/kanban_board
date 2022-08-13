@@ -1,9 +1,9 @@
 package ports
 
 import (
+	"github.com/hardiksachan/kanban_board/backend/internal/users"
+	"github.com/hardiksachan/kanban_board/backend/internal/users/core/domain"
 	"golang.org/x/crypto/bcrypt"
-	"kanban_board/internal/users"
-	"kanban_board/internal/users/core/domain"
 )
 
 type AuthService struct {

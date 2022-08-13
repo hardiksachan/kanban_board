@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 CREATE TABLE IF NOT EXISTS "user"
 (
     user_id     UUID PRIMARY KEY NOT NULL DEFAULT uuid_generate_v4(),
@@ -11,3 +13,4 @@ CREATE TABLE IF NOT EXISTS "user"
 ---- create above / drop below ----
 
 DROP TABLE IF EXISTS "user" CASCADE;
+DROP EXTENSION IF EXISTS "uuid-ossp" CASCADE;

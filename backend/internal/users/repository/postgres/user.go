@@ -2,11 +2,11 @@ package postgres
 
 import (
 	"context"
-	uuid "github.com/google/uuid"
+	"github.com/google/uuid"
+	"github.com/hardiksachan/kanban_board/backend/internal/users"
+	"github.com/hardiksachan/kanban_board/backend/internal/users/core/domain"
+	"github.com/hardiksachan/kanban_board/backend/internal/users/repository/postgres/user/dao"
 	"github.com/jackc/pgx/v4"
-	"kanban_board/internal/users"
-	"kanban_board/internal/users/core/domain"
-	"kanban_board/internal/users/repository/postgres/user/dao"
 )
 
 type UserStore struct {

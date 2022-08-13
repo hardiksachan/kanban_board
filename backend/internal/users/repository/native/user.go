@@ -1,8 +1,8 @@
 package native
 
 import (
-	"kanban_board/internal/users"
-	"kanban_board/internal/users/core/domain"
+	"github.com/hardiksachan/kanban_board/backend/internal/users"
+	"github.com/hardiksachan/kanban_board/backend/internal/users/core/domain"
 	"strconv"
 )
 

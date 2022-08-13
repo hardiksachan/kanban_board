@@ -1,4 +1,4 @@
-module kanban_board
+module github.com/hardiksachan/kanban_board/backend
 
 go 1.18
 
