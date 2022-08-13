@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-playground/validator/v10"
+	goredis "github.com/go-redis/redis/v9"
 	"github.com/gorilla/mux"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/core/ports"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/handlers"
-	"github.com/hardiksachan/kanban_board/backend/internal/users/repository/native"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/repository/postgres"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/repository/postgres/user/dao"
+	"github.com/hardiksachan/kanban_board/backend/internal/users/repository/redis"
 	"github.com/hardiksachan/kanban_board/backend/shared/logging"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"log"
@@ -30,6 +31,12 @@ func main() {
 	pgUrl := os.Getenv("PG_URL")
 	logger.Debug(fmt.Sprintf("Postgres URL in env: %s", pgUrl))
 
+	rAddr := os.Getenv("REDIS_ADDR")
+	logger.Debug(fmt.Sprintf("Redis addr in env: %s", rAddr))
+
+	rPass := os.Getenv("REDIS_PASS")
+	logger.Debug(fmt.Sprintf("Redis password in env: %s", rPass))
+
 	pg, err := pgxpool.Connect(context.Background(), pgUrl)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Can't connect to database. %s", err.Error()))
@@ -39,7 +46,10 @@ func main() {
 	usersHandler := handlers.NewUsersHandler(
 		ports.NewAuthService(
 			postgres.NewUserStore(dao.New(pg)),
-			native.NewSessionStore(),
+			redis.NewSessionStore(goredis.NewClient(&goredis.Options{
+				Addr:     rAddr,
+				Password: rPass,
+			})),
 		),
 		logger,
 		validator.New(),
