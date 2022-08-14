@@ -7,8 +7,10 @@ import (
 	goredis "github.com/go-redis/redis/v9"
 	"github.com/gorilla/mux"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/core/ports"
-	"github.com/hardiksachan/kanban_board/backend/internal/users/handlers"
+	"github.com/hardiksachan/kanban_board/backend/internal/users/handlers/auth"
+	"github.com/hardiksachan/kanban_board/backend/internal/users/handlers/user"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/repository/jwt"
+	"github.com/hardiksachan/kanban_board/backend/internal/users/repository/native"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/repository/postgres"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/repository/postgres/user/dao"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/repository/redis"
@@ -48,7 +50,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	usersHandler := handlers.NewUsersHandler(
+	authHandler := auth.NewAuthHandler(
 		ports.NewAuthService(
 			postgres.NewUserStore(dao.New(pg)),
 			jwt.NewAccessTokenStore(jwtKey, time.Minute*10),
@@ -61,11 +63,20 @@ func main() {
 		validator.New(),
 	)
 
+	userHandler := user.NewUserHandler(
+		ports.NewUserService(native.NewUserMetadataStore()),
+		logger,
+		validator.New(),
+	)
+
 	router := mux.NewRouter()
 
-	router.HandleFunc("/users/signup", usersHandler.SignUp).Methods(http.MethodPost)
-	router.HandleFunc("/users/login", usersHandler.LogIn).Methods(http.MethodPost)
-	router.Handle("/users/logout", usersHandler.AuthMiddleware(http.HandlerFunc(usersHandler.LogOut))).Methods(http.MethodPost)
+	router.HandleFunc("/users/signup", authHandler.SignUp).Methods(http.MethodPost)
+	router.HandleFunc("/users/login", authHandler.LogIn).Methods(http.MethodPost)
+	router.Handle("/users/logout", authHandler.AuthMiddleware(http.HandlerFunc(authHandler.LogOut))).Methods(http.MethodPost)
+
+	router.HandleFunc("/users/{user_id}", userHandler.Get).Methods(http.MethodGet)
+	router.Handle("/users/{user_id}", authHandler.AuthMiddleware(http.HandlerFunc(userHandler.Update))).Methods(http.MethodPut)
 
 	logger.Debug(fmt.Sprintf("Starting server on port: %s", port))
 

@@ -1,4 +1,4 @@
-package handlers
+package auth
 
 import (
 	"github.com/hardiksachan/kanban_board/backend/internal/users/core/domain"
@@ -19,6 +19,7 @@ type LogInRequest struct {
 type LogInResponse struct {
 	AccessToken  string `json:"access_token,omitempty"`
 	RefreshToken string `json:"refresh_token,omitempty"`
+	UserId       string `json:"user_id,omitempty"`
 }
 
 type LogOutRequest struct {

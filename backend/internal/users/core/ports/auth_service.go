@@ -49,40 +49,40 @@ func (a *AuthService) SignUp(user *domain.User) (*domain.User, error) {
 // LogIn creates and returns a AccessToken and RefreshToken if credentials are valid
 // Otherwise, returns ENOTFOUND if email is incorrect
 // returns ECONFLICT if passwords do not match
-func (a *AuthService) LogIn(email, password string) (encodedAccessToken, encodedRefreshToken string, err error) {
+func (a *AuthService) LogIn(email, password string) (storedUser *domain.User, encodedAccessToken, encodedRefreshToken string, err error) {
 	op := "ports.AuthService.Login"
 	msg := fmt.Sprintf("email(%s) or password incorrect", email)
 
-	storedUser, err := a.userStore.FindByEmail(email)
+	storedUser, err = a.userStore.FindByEmail(email)
 	if err != nil {
-		return "", "", &users.Error{Op: op, Message: msg, Err: err}
+		return nil, "", "", &users.Error{Op: op, Message: msg, Err: err}
 	}
 
 	_, err = VerifyPassword(password, storedUser.Password)
 	if err != nil {
-		return "", "", &users.Error{Op: op, Code: users.ECONFLICT, Message: msg, Err: err}
+		return nil, "", "", &users.Error{Op: op, Code: users.ECONFLICT, Message: msg, Err: err}
 	}
 
 	refreshToken, err := a.refreshTokenStore.Create(storedUser.ID)
 	if err != nil {
-		return "", "", &users.Error{Op: op, Err: err}
+		return nil, "", "", &users.Error{Op: op, Err: err}
 	}
 	encodedRefreshToken, err = a.refreshTokenStore.Encode(refreshToken)
 	if err != nil {
-		return "", "", &users.Error{Op: op, Err: err}
+		return nil, "", "", &users.Error{Op: op, Err: err}
 	}
 
 	accessToken, err := a.accessTokenStore.Create(storedUser.ID)
 	if err != nil {
-		return "", "", &users.Error{Op: op, Err: err}
+		return nil, "", "", &users.Error{Op: op, Err: err}
 	}
 
 	encodedAccessToken, err = a.accessTokenStore.Encode(accessToken)
 	if err != nil {
-		return "", "", &users.Error{Op: op, Err: err}
+		return nil, "", "", &users.Error{Op: op, Err: err}
 	}
 
-	return encodedAccessToken, encodedRefreshToken, nil
+	return storedUser, encodedAccessToken, encodedRefreshToken, nil
 }
 
 // LogOut deletes a RefreshToken

@@ -1,4 +1,4 @@
-package handlers
+package auth
 
 import (
 	"context"
@@ -16,17 +16,20 @@ import (
 type AccessTokenKey struct {
 }
 
-type UsersHandler struct {
+type UserIDKey struct {
+}
+
+type Handler struct {
 	auth      *ports.AuthService
 	log       logging.Logger
 	validator *validator.Validate
 }
 
-func NewUsersHandler(auth *ports.AuthService, log logging.Logger, validator *validator.Validate) *UsersHandler {
-	return &UsersHandler{auth, log, validator}
+func NewAuthHandler(auth *ports.AuthService, log logging.Logger, validator *validator.Validate) *Handler {
+	return &Handler{auth, log, validator}
 }
 
-func (h *UsersHandler) SignUp(rw http.ResponseWriter, r *http.Request) {
+func (h *Handler) SignUp(rw http.ResponseWriter, r *http.Request) {
 	// Read request body as SignUpRequest
 	rm, err := jsonHelper.Parse[SignUpRequest](r.Body)
 	if err != nil {
@@ -63,7 +66,7 @@ func (h *UsersHandler) SignUp(rw http.ResponseWriter, r *http.Request) {
 	rw.WriteHeader(http.StatusCreated)
 }
 
-func (h *UsersHandler) LogIn(rw http.ResponseWriter, r *http.Request) {
+func (h *Handler) LogIn(rw http.ResponseWriter, r *http.Request) {
 	// Read request body as LogInRequest
 	rm, err := jsonHelper.Parse[LogInRequest](r.Body)
 	if err != nil {
@@ -83,7 +86,7 @@ func (h *UsersHandler) LogIn(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// call application layer to Log In user
-	accessToken, refreshToken, err := h.auth.LogIn(rm.Email, rm.Password)
+	storedUser, accessToken, refreshToken, err := h.auth.LogIn(rm.Email, rm.Password)
 	if err != nil {
 		switch users.ErrorCode(err) {
 		case users.ECONFLICT, users.ENOTFOUND:
@@ -101,10 +104,11 @@ func (h *UsersHandler) LogIn(rw http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(rw).Encode(LogInResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
+		UserId:       storedUser.ID,
 	})
 }
 
-func (h *UsersHandler) LogOut(rw http.ResponseWriter, r *http.Request) {
+func (h *Handler) LogOut(rw http.ResponseWriter, r *http.Request) {
 	rm, err := jsonHelper.Parse[LogOutRequest](r.Body)
 	if err != nil {
 		h.log.Debug(fmt.Sprintf("unable to parse request body. err: %s", err.Error()))
@@ -124,7 +128,7 @@ func (h *UsersHandler) LogOut(rw http.ResponseWriter, r *http.Request) {
 	rw.WriteHeader(http.StatusNoContent)
 }
 
-func (h *UsersHandler) RefreshAccessToken(rw http.ResponseWriter, r *http.Request) {
+func (h *Handler) RefreshAccessToken(rw http.ResponseWriter, r *http.Request) {
 	rm, err := jsonHelper.Parse[RefreshAccessTokenRequest](r.Body)
 	if err != nil {
 		h.log.Debug(fmt.Sprintf("unable to parse request body. err: %s", err.Error()))
@@ -147,7 +151,7 @@ func (h *UsersHandler) RefreshAccessToken(rw http.ResponseWriter, r *http.Reques
 	rw.WriteHeader(http.StatusCreated)
 }
 
-func (h *UsersHandler) AuthMiddleware(next http.Handler) http.Handler {
+func (h *Handler) AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		encodedAccessToken := r.Header.Get("Authorization")
 		if encodedAccessToken == "" {
@@ -182,6 +186,7 @@ func (h *UsersHandler) AuthMiddleware(next http.Handler) http.Handler {
 
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, &AccessTokenKey{}, accessToken)
+		ctx = context.WithValue(ctx, &UserIDKey{}, accessToken.UserID)
 
 		next.ServeHTTP(rw, r.WithContext(ctx))
 	})
