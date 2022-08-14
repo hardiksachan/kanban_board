@@ -72,6 +72,8 @@ func main() {
 
 	router := mux.NewRouter()
 
+	router.Use(logger.Middleware)
+
 	router.HandleFunc("/users/signup", authHandler.SignUp).Methods(http.MethodPost)
 	router.HandleFunc("/users/login", authHandler.LogIn).Methods(http.MethodPost)
 	router.HandleFunc("/users/refresh", authHandler.RefreshAccessToken).Methods(http.MethodPost)

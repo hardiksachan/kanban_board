@@ -60,12 +60,9 @@ func (s *UserMetadataStore) Get(userID string) (*domain.UserMetadata, error) {
 		return nil, &users.Error{Code: users.EINTERNAL, Op: op, Err: err}
 	}
 
-	var profileURL string
-	_ = dbUser.ProfileImageUrl.Scan(profileURL)
-
 	return &domain.UserMetadata{
 		UserId:      dbUser.UserID.String(),
 		DisplayName: dbUser.DisplayName,
-		ImageURL:    profileURL,
+		ImageURL:    dbUser.ProfileImageUrl.String,
 	}, nil
 }
