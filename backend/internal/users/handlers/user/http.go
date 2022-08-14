@@ -79,9 +79,17 @@ func (h *Handler) Get(rw http.ResponseWriter, r *http.Request) {
 
 			http.Error(rw, users.ErrorMessage(err), http.StatusNotFound)
 			return
+		default:
+			h.log.Debug(fmt.Sprintf("unable to get metadata. err: %s", err.Error()))
+
+			http.Error(rw, users.ErrorMessage(err), http.StatusInternalServerError)
+			return
 		}
 	}
 
 	h.log.Debug(fmt.Sprintf("user fetch succesfull. userId: %s", userId))
-	json.NewEncoder(rw).Encode(user)
+	err = json.NewEncoder(rw).Encode(user)
+	if err != nil {
+		h.log.Debug(fmt.Sprintf("unable to marshall user. err: %s", err.Error()))
+	}
 }

@@ -148,7 +148,6 @@ func (h *Handler) RefreshAccessToken(rw http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(rw).Encode(&RefreshAccessTokenResponse{
 		AccessToken: accessToken,
 	})
-	rw.WriteHeader(http.StatusCreated)
 }
 
 func (h *Handler) AuthMiddleware(next http.Handler) http.Handler {

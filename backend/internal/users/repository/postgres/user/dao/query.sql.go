@@ -7,19 +7,31 @@ package dao
 
 import (
 	"context"
+	"database/sql"
+	"time"
 
 	"github.com/google/uuid"
 )
 
 const deleteUser = `-- name: DeleteUser :one
-DELETE FROM "user"
+DELETE
+FROM "user"
 WHERE user_id = $1
-RETURNING user_id, name, email, password, created_at, modified_at
+RETURNING user_id, name, email, password,created_at, modified_at
 `
 
-func (q *Queries) DeleteUser(ctx context.Context, userID uuid.UUID) (User, error) {
+type DeleteUserRow struct {
+	UserID     uuid.UUID
+	Name       string
+	Email      string
+	Password   string
+	CreatedAt  time.Time
+	ModifiedAt time.Time
+}
+
+func (q *Queries) DeleteUser(ctx context.Context, userID uuid.UUID) (DeleteUserRow, error) {
 	row := q.db.QueryRow(ctx, deleteUser, userID)
-	var i User
+	var i DeleteUserRow
 	err := row.Scan(
 		&i.UserID,
 		&i.Name,
@@ -37,9 +49,18 @@ FROM "user"
 WHERE email = $1
 `
 
-func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+type GetUserByEmailRow struct {
+	UserID     uuid.UUID
+	Name       string
+	Email      string
+	Password   string
+	CreatedAt  time.Time
+	ModifiedAt time.Time
+}
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error) {
 	row := q.db.QueryRow(ctx, getUserByEmail, email)
-	var i User
+	var i GetUserByEmailRow
 	err := row.Scan(
 		&i.UserID,
 		&i.Name,
@@ -57,9 +78,18 @@ FROM "user"
 WHERE user_id = $1
 `
 
-func (q *Queries) GetUserById(ctx context.Context, userID uuid.UUID) (User, error) {
+type GetUserByIdRow struct {
+	UserID     uuid.UUID
+	Name       string
+	Email      string
+	Password   string
+	CreatedAt  time.Time
+	ModifiedAt time.Time
+}
+
+func (q *Queries) GetUserById(ctx context.Context, userID uuid.UUID) (GetUserByIdRow, error) {
 	row := q.db.QueryRow(ctx, getUserById, userID)
-	var i User
+	var i GetUserByIdRow
 	err := row.Scan(
 		&i.UserID,
 		&i.Name,
@@ -71,9 +101,29 @@ func (q *Queries) GetUserById(ctx context.Context, userID uuid.UUID) (User, erro
 	return i, err
 }
 
+const getUserMetadata = `-- name: GetUserMetadata :one
+SELECT user_id, display_name, profile_image_url
+FROM "user"
+WHERE user_id = $1
+`
+
+type GetUserMetadataRow struct {
+	UserID          uuid.UUID
+	DisplayName     string
+	ProfileImageUrl sql.NullString
+}
+
+func (q *Queries) GetUserMetadata(ctx context.Context, userID uuid.UUID) (GetUserMetadataRow, error) {
+	row := q.db.QueryRow(ctx, getUserMetadata, userID)
+	var i GetUserMetadataRow
+	err := row.Scan(&i.UserID, &i.DisplayName, &i.ProfileImageUrl)
+	return i, err
+}
+
 const insertUser = `-- name: InsertUser :one
-INSERT INTO "user"(name, email, password)
-VALUES ($1, $2, $3) RETURNING user_id, name, email, password, created_at, modified_at
+INSERT INTO "user"(name, email, password, display_name)
+VALUES ($1, $2, $3, $1)
+RETURNING user_id, name, email, password,created_at, modified_at
 `
 
 type InsertUserParams struct {
@@ -82,9 +132,18 @@ type InsertUserParams struct {
 	Password string
 }
 
-func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) (User, error) {
+type InsertUserRow struct {
+	UserID     uuid.UUID
+	Name       string
+	Email      string
+	Password   string
+	CreatedAt  time.Time
+	ModifiedAt time.Time
+}
+
+func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) (InsertUserRow, error) {
 	row := q.db.QueryRow(ctx, insertUser, arg.Name, arg.Email, arg.Password)
-	var i User
+	var i InsertUserRow
 	err := row.Scan(
 		&i.UserID,
 		&i.Name,
@@ -98,13 +157,11 @@ func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) (User, e
 
 const updateUser = `-- name: UpdateUser :one
 UPDATE "user"
-SET
-    name = $1,
-    email = $2,
-    password = $3,
+SET name        = $1,
+    email       = $2,
+    password    = $3,
     modified_at = now()
-WHERE
-    user_id = $4
+WHERE user_id = $4
 RETURNING user_id, name, email, password, created_at, modified_at
 `
 
@@ -115,14 +172,23 @@ type UpdateUserParams struct {
 	UserID   uuid.UUID
 }
 
-func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
+type UpdateUserRow struct {
+	UserID     uuid.UUID
+	Name       string
+	Email      string
+	Password   string
+	CreatedAt  time.Time
+	ModifiedAt time.Time
+}
+
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (UpdateUserRow, error) {
 	row := q.db.QueryRow(ctx, updateUser,
 		arg.Name,
 		arg.Email,
 		arg.Password,
 		arg.UserID,
 	)
-	var i User
+	var i UpdateUserRow
 	err := row.Scan(
 		&i.UserID,
 		&i.Name,
@@ -131,5 +197,33 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.CreatedAt,
 		&i.ModifiedAt,
 	)
+	return i, err
+}
+
+const updateUserMetadata = `-- name: UpdateUserMetadata :one
+UPDATE "user"
+SET display_name      = $1,
+    profile_image_url = $2,
+    modified_at       = now()
+WHERE user_id = $3
+RETURNING user_id, display_name, profile_image_url
+`
+
+type UpdateUserMetadataParams struct {
+	DisplayName     string
+	ProfileImageUrl sql.NullString
+	UserID          uuid.UUID
+}
+
+type UpdateUserMetadataRow struct {
+	UserID          uuid.UUID
+	DisplayName     string
+	ProfileImageUrl sql.NullString
+}
+
+func (q *Queries) UpdateUserMetadata(ctx context.Context, arg UpdateUserMetadataParams) (UpdateUserMetadataRow, error) {
+	row := q.db.QueryRow(ctx, updateUserMetadata, arg.DisplayName, arg.ProfileImageUrl, arg.UserID)
+	var i UpdateUserMetadataRow
+	err := row.Scan(&i.UserID, &i.DisplayName, &i.ProfileImageUrl)
 	return i, err
 }

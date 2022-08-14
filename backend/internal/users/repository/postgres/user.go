@@ -2,10 +2,10 @@ package postgres
 
 import (
 	"context"
-	"github.com/google/uuid"
 	"github.com/hardiksachan/kanban_board/backend/internal/users"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/core/domain"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/repository/postgres/user/dao"
+	"github.com/hardiksachan/kanban_board/backend/shared"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -29,7 +29,14 @@ func (s *UserStore) Insert(user *domain.User) (*domain.User, error) {
 	if err != nil {
 		return nil, &users.Error{Code: users.EINTERNAL, Op: op, Err: err}
 	}
-	return toDomain(&dbUser), nil
+	return &domain.User{
+		ID:         dbUser.UserID.String(),
+		Name:       dbUser.Name,
+		Email:      dbUser.Email,
+		Password:   dbUser.Password,
+		CreatedAt:  dbUser.CreatedAt,
+		ModifiedAt: dbUser.ModifiedAt,
+	}, nil
 }
 
 func (s *UserStore) Update(user *domain.User) error {
@@ -37,7 +44,7 @@ func (s *UserStore) Update(user *domain.User) error {
 
 	ctx := context.Background()
 
-	userUuid, err := uuid.FromBytes([]byte(user.ID))
+	userUuid, err := shared.GetUUIDFromString(user.ID)
 	if err != nil {
 		return &users.Error{Code: users.EINVALID, Message: "Unable to parse UUID", Op: op, Err: err}
 	}
@@ -46,7 +53,7 @@ func (s *UserStore) Update(user *domain.User) error {
 		Name:     user.Name,
 		Email:    user.Email,
 		Password: user.Password,
-		UserID:   userUuid,
+		UserID:   *userUuid,
 	})
 	if err != nil {
 		return &users.Error{Code: users.EINTERNAL, Op: op, Err: err}
@@ -59,12 +66,12 @@ func (s *UserStore) Remove(user *domain.User) error {
 
 	ctx := context.Background()
 
-	userUuid, err := uuid.FromBytes([]byte(user.ID))
+	userUuid, err := shared.GetUUIDFromString(user.ID)
 	if err != nil {
 		return &users.Error{Code: users.EINVALID, Message: "Unable to parse UUID", Op: op, Err: err}
 	}
 
-	_, err = s.q.DeleteUser(ctx, userUuid)
+	_, err = s.q.DeleteUser(ctx, *userUuid)
 	if err != nil {
 		return &users.Error{Code: users.EINTERNAL, Op: op, Err: err}
 	}
@@ -74,20 +81,27 @@ func (s *UserStore) Remove(user *domain.User) error {
 func (s *UserStore) FindById(userId string) (*domain.User, error) {
 	op := "postgres.UserStore.FindById"
 
-	userUuid, err := uuid.FromBytes([]byte(userId))
+	userUuid, err := shared.GetUUIDFromString(userId)
 	if err != nil {
 		return nil, &users.Error{Code: users.EINVALID, Message: "Unable to parse UUID", Op: op, Err: err}
 	}
 
 	ctx := context.Background()
-	dbUser, err := s.q.GetUserById(ctx, userUuid)
+	dbUser, err := s.q.GetUserById(ctx, *userUuid)
 	if err == pgx.ErrNoRows {
 		return nil, &users.Error{Code: users.ENOTFOUND, Op: op, Err: err}
 	}
 	if err != nil {
 		return nil, &users.Error{Code: users.EINTERNAL, Op: op, Err: err}
 	}
-	return toDomain(&dbUser), nil
+	return &domain.User{
+		ID:         dbUser.UserID.String(),
+		Name:       dbUser.Name,
+		Email:      dbUser.Email,
+		Password:   dbUser.Password,
+		CreatedAt:  dbUser.CreatedAt,
+		ModifiedAt: dbUser.ModifiedAt,
+	}, nil
 }
 
 func (s *UserStore) FindByEmail(email string) (*domain.User, error) {
@@ -101,7 +115,14 @@ func (s *UserStore) FindByEmail(email string) (*domain.User, error) {
 	if err != nil {
 		return nil, &users.Error{Code: users.EINTERNAL, Op: op, Err: err}
 	}
-	return toDomain(&dbUser), nil
+	return &domain.User{
+		ID:         dbUser.UserID.String(),
+		Name:       dbUser.Name,
+		Email:      dbUser.Email,
+		Password:   dbUser.Password,
+		CreatedAt:  dbUser.CreatedAt,
+		ModifiedAt: dbUser.ModifiedAt,
+	}, nil
 }
 
 func (s *UserStore) CheckByEmail(email string) (bool, error) {
@@ -116,15 +137,4 @@ func (s *UserStore) CheckByEmail(email string) (bool, error) {
 		return false, &users.Error{Code: users.EINTERNAL, Op: op, Err: err}
 	}
 	return true, nil
-}
-
-func toDomain(u *dao.User) *domain.User {
-	return &domain.User{
-		ID:         u.UserID.String(),
-		Name:       u.Name,
-		Email:      u.Email,
-		Password:   u.Password,
-		CreatedAt:  u.CreatedAt,
-		ModifiedAt: u.ModifiedAt,
-	}
 }

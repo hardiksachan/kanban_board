@@ -10,7 +10,6 @@ import (
 	"github.com/hardiksachan/kanban_board/backend/internal/users/handlers/auth"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/handlers/user"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/repository/jwt"
-	"github.com/hardiksachan/kanban_board/backend/internal/users/repository/native"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/repository/postgres"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/repository/postgres/user/dao"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/repository/redis"
@@ -50,9 +49,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	pgq := dao.New(pg)
+
 	authHandler := auth.NewAuthHandler(
 		ports.NewAuthService(
-			postgres.NewUserStore(dao.New(pg)),
+			postgres.NewUserStore(pgq),
 			jwt.NewAccessTokenStore(jwtKey, time.Minute*10),
 			redis.NewRefreshTokenStore(goredis.NewClient(&goredis.Options{
 				Addr:     rAddr,
@@ -64,7 +65,7 @@ func main() {
 	)
 
 	userHandler := user.NewUserHandler(
-		ports.NewUserService(native.NewUserMetadataStore()),
+		ports.NewUserService(postgres.NewUserMetadataStore(pgq)),
 		logger,
 		validator.New(),
 	)
@@ -73,6 +74,7 @@ func main() {
 
 	router.HandleFunc("/users/signup", authHandler.SignUp).Methods(http.MethodPost)
 	router.HandleFunc("/users/login", authHandler.LogIn).Methods(http.MethodPost)
+	router.HandleFunc("/users/refresh", authHandler.RefreshAccessToken).Methods(http.MethodPost)
 	router.Handle("/users/logout", authHandler.AuthMiddleware(http.HandlerFunc(authHandler.LogOut))).Methods(http.MethodPost)
 
 	router.HandleFunc("/users/{user_id}", userHandler.Get).Methods(http.MethodGet)

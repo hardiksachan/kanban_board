@@ -5,16 +5,19 @@
 package dao
 
 import (
+	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
 )
 
 type User struct {
-	UserID     uuid.UUID
-	Name       string
-	Email      string
-	Password   string
-	CreatedAt  time.Time
-	ModifiedAt time.Time
+	UserID          uuid.UUID
+	Name            string
+	Email           string
+	Password        string
+	CreatedAt       time.Time
+	ModifiedAt      time.Time
+	ProfileImageUrl sql.NullString
+	DisplayName     string
 }
