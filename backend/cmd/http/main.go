@@ -8,6 +8,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/core/ports"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/handlers"
+	"github.com/hardiksachan/kanban_board/backend/internal/users/repository/jwt"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/repository/postgres"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/repository/postgres/user/dao"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/repository/redis"
@@ -16,6 +17,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 )
 
 func main() {
@@ -37,6 +39,9 @@ func main() {
 	rPass := os.Getenv("REDIS_PASS")
 	logger.Debug(fmt.Sprintf("Redis password in env: %s", rPass))
 
+	jwtKey := os.Getenv("JWT_SIGNING_KEY")
+	logger.Debug(fmt.Sprintf("jwt key in env: %s", jwtKey))
+
 	pg, err := pgxpool.Connect(context.Background(), pgUrl)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Can't connect to database. %s", err.Error()))
@@ -46,7 +51,8 @@ func main() {
 	usersHandler := handlers.NewUsersHandler(
 		ports.NewAuthService(
 			postgres.NewUserStore(dao.New(pg)),
-			redis.NewSessionStore(goredis.NewClient(&goredis.Options{
+			jwt.NewAccessTokenStore(jwtKey, time.Minute*10),
+			redis.NewRefreshTokenStore(goredis.NewClient(&goredis.Options{
 				Addr:     rAddr,
 				Password: rPass,
 			})),

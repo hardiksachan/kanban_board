@@ -11,6 +11,7 @@ const (
 	EINTERNAL = "internal"  // internal error
 	EINVALID  = "invalid"   // validation failed
 	ENOTFOUND = "not_found" // entity does not exist
+	EEXPIRED  = "expired"   // entity is expired
 )
 
 type Error struct {

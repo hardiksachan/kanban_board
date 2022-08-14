@@ -5,18 +5,20 @@ import (
 	"github.com/hardiksachan/kanban_board/backend/internal/users"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/core/domain"
 	"golang.org/x/crypto/bcrypt"
+	"time"
 )
 
 type AuthService struct {
-	userStore    UserStore
-	sessionStore SessionStore
+	userStore         UserStore
+	refreshTokenStore RefreshTokenStore
+	accessTokenStore  AccessTokenStore
 }
 
-func NewAuthService(userStore UserStore, sessionStore SessionStore) *AuthService {
-	return &AuthService{userStore, sessionStore}
+func NewAuthService(userStore UserStore, accessTokenStore AccessTokenStore, refreshTokenStore RefreshTokenStore) *AuthService {
+	return &AuthService{userStore, refreshTokenStore, accessTokenStore}
 }
 
-// SignUp returns user ID after adding it to store
+// SignUp returns User after adding it to store
 // Otherwise, returns ECONFLICT if user with same email exists
 // returns wrapped error if fails
 func (a *AuthService) SignUp(user *domain.User) (*domain.User, error) {
@@ -44,54 +46,97 @@ func (a *AuthService) SignUp(user *domain.User) (*domain.User, error) {
 	return storedUser, nil
 }
 
-// LogIn creates and returns a session if credentials are valid
+// LogIn creates and returns a AccessToken and RefreshToken if credentials are valid
 // Otherwise, returns ENOTFOUND if email is incorrect
 // returns ECONFLICT if passwords do not match
-func (a *AuthService) LogIn(email, password string) (*domain.Session, error) {
+func (a *AuthService) LogIn(email, password string) (encodedAccessToken, encodedRefreshToken string, err error) {
 	op := "ports.AuthService.Login"
 	msg := fmt.Sprintf("email(%s) or password incorrect", email)
 
 	storedUser, err := a.userStore.FindByEmail(email)
 	if err != nil {
-		return nil, &users.Error{Op: op, Message: msg, Err: err}
+		return "", "", &users.Error{Op: op, Message: msg, Err: err}
 	}
 
 	_, err = VerifyPassword(password, storedUser.Password)
 	if err != nil {
-		return nil, &users.Error{Op: op, Code: users.ECONFLICT, Message: msg, Err: err}
+		return "", "", &users.Error{Op: op, Code: users.ECONFLICT, Message: msg, Err: err}
 	}
 
-	session, err := a.sessionStore.Create(storedUser.ID)
+	refreshToken, err := a.refreshTokenStore.Create(storedUser.ID)
 	if err != nil {
-		return nil, &users.Error{Op: op, Err: err}
+		return "", "", &users.Error{Op: op, Err: err}
+	}
+	encodedRefreshToken, err = a.refreshTokenStore.Encode(refreshToken)
+	if err != nil {
+		return "", "", &users.Error{Op: op, Err: err}
 	}
 
-	return session, nil
+	accessToken, err := a.accessTokenStore.Create(storedUser.ID)
+	if err != nil {
+		return "", "", &users.Error{Op: op, Err: err}
+	}
+
+	encodedAccessToken, err = a.accessTokenStore.Encode(accessToken)
+	if err != nil {
+		return "", "", &users.Error{Op: op, Err: err}
+	}
+
+	return encodedAccessToken, encodedRefreshToken, nil
 }
 
-// LogOut deletes a user session
+// LogOut deletes a RefreshToken
 // Otherwise, returns error
-func (a *AuthService) LogOut(sessionId string) error {
+func (a *AuthService) LogOut(encodedRefreshToken string) error {
 	op := "ports.AuthService.LogOut"
 
-	err := a.sessionStore.Delete(sessionId)
+	err := a.refreshTokenStore.Delete(encodedRefreshToken)
 	if err != nil {
 		return &users.Error{Op: op, Err: err}
 	}
 	return nil
 }
 
-// GetSession returns a user session
-// Otherwise, returns ENOTFOUND if the session Id is invalid
-// returns error if fails
-func (a *AuthService) GetSession(sessionId string) (*domain.Session, error) {
-	op := "ports.AuthService.LogOut"
+func (a *AuthService) DecodeAccessToken(encodedAccessToken string) (*domain.AccessToken, error) {
+	op := "ports.AuthService.DecodeAccessToken"
 
-	session, err := a.sessionStore.Get(sessionId)
+	accessToken, err := a.accessTokenStore.VerifyAndDecode(encodedAccessToken)
 	if err != nil {
 		return nil, &users.Error{Op: op, Err: err}
 	}
-	return session, nil
+	if accessToken == nil {
+		return nil, &users.Error{Op: op, Message: "invalid access token", Code: users.EINVALID}
+	}
+
+	if accessToken.ExpiresAt.Unix() < time.Now().Unix() {
+		return nil, &users.Error{Op: op, Message: "access token expired", Code: users.EEXPIRED}
+	}
+
+	return accessToken, nil
+}
+
+func (a *AuthService) RegenerateAccessToken(encodedRefreshToken string) (encodedAccessToken string, err error) {
+	op := "ports.AuthService.RegenerateAccessToken"
+
+	refreshToken, err := a.refreshTokenStore.VerifyAndDecode(encodedRefreshToken)
+	if err != nil {
+		return "", &users.Error{Op: op, Err: err}
+	}
+	if refreshToken == nil {
+		return "", &users.Error{Op: op, Code: users.EINVALID, Err: err}
+	}
+
+	accessToken, err := a.accessTokenStore.Create(refreshToken.UserID)
+	if err != nil {
+		return "", &users.Error{Op: op, Err: err}
+	}
+
+	encodedAccessToken, err = a.accessTokenStore.Encode(accessToken)
+	if err != nil {
+		return "", &users.Error{Op: op, Err: err}
+	}
+
+	return encodedAccessToken, nil
 }
 
 func HashPassword(pass string) (string, error) {

@@ -2,8 +2,7 @@ package domain
 
 import "time"
 
-type Session struct {
-	ID        string
+type AccessToken struct {
 	UserID    string
 	ExpiresAt time.Time
 }
