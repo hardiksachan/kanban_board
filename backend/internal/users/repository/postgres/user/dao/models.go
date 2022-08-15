@@ -19,5 +19,4 @@ type User struct {
 	CreatedAt       time.Time
 	ModifiedAt      time.Time
 	ProfileImageUrl sql.NullString
-	DisplayName     string
 }

@@ -6,17 +6,17 @@ import (
 )
 
 type UserMetadataStore struct {
-	users []*domain.UserMetadata
+	users []*domain.User
 }
 
 func NewUserMetadataStore() *UserMetadataStore {
 	return &UserMetadataStore{}
 }
 
-func (s *UserMetadataStore) Update(user *domain.UserMetadata) error {
+func (s *UserMetadataStore) Update(user *domain.User) error {
 	for _, metadata := range s.users {
 		if metadata.UserId == user.UserId {
-			metadata.DisplayName = user.DisplayName
+			metadata.Name = user.Name
 			metadata.ImageURL = user.ImageURL
 			return nil
 		}
@@ -26,7 +26,7 @@ func (s *UserMetadataStore) Update(user *domain.UserMetadata) error {
 	return nil
 }
 
-func (s *UserMetadataStore) Get(userID string) (*domain.UserMetadata, error) {
+func (s *UserMetadataStore) Get(userID string) (*domain.User, error) {
 	for _, metadata := range s.users {
 		if metadata.UserId == userID {
 			return metadata, nil

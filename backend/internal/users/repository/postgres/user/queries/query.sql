@@ -1,44 +1,45 @@
--- name: GetUserById :one
-SELECT user_id, name, email, password, created_at, modified_at
+-- name: FindById :one
+SELECT user_id, email, password
 FROM "user"
 WHERE user_id = $1;
 
--- name: GetUserByEmail :one
-SELECT user_id, name, email, password, created_at, modified_at
+-- name: FindByEmail :one
+SELECT user_id, email, password
 FROM "user"
 WHERE email = $1;
 
--- name: InsertUser :one
-INSERT INTO "user"(name, email, password, display_name)
-VALUES ($1, $2, $3, $1)
-RETURNING user_id, name, email, password,created_at, modified_at;
+-- name: CountByEmail :one
+SELECT COUNT(*)
+FROM "user"
+WHERE email = $1;
 
--- name: UpdateUser :one
+-- name: InsertCredential :one
+INSERT INTO "user"(email, password, name)
+VALUES ($1, $2, split_part($1, '@', 1))
+RETURNING user_id, email, password;
+
+-- name: UpdatePassword :one
 UPDATE "user"
-SET name        = $1,
-    email       = $2,
-    password    = $3,
+SET password    = $1,
     modified_at = now()
-WHERE user_id = $4
-RETURNING user_id, name, email, password, created_at, modified_at;
+WHERE user_id = $2
+RETURNING user_id, email, password;
 
 -- name: DeleteUser :one
 DELETE
 FROM "user"
 WHERE user_id = $1
-RETURNING user_id, name, email, password,created_at, modified_at;
+RETURNING *;
 
--- name: UpdateUserMetadata :one
+-- name: UpdateUserData :one
 UPDATE "user"
-SET display_name      = $1,
+SET name = $1,
     profile_image_url = $2,
-    modified_at       = now()
+    modified_at = now()
 WHERE user_id = $3
-RETURNING user_id, display_name, profile_image_url;
+RETURNING user_id, email, name, profile_image_url;
 
--- name: GetUserMetadata :one
-SELECT user_id, display_name, profile_image_url
+-- name: GetUserData :one
+SELECT user_id, email, name, profile_image_url
 FROM "user"
 WHERE user_id = $1;
-
-

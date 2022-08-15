@@ -2,7 +2,6 @@ package auth
 
 import (
 	"github.com/hardiksachan/kanban_board/backend/internal/users/core/domain"
-	"time"
 )
 
 type SignUpRequest struct {
@@ -34,13 +33,10 @@ type RefreshAccessTokenResponse struct {
 	AccessToken string `json:"access_token"`
 }
 
-func (r *SignUpRequest) toDomain() *domain.User {
-	return &domain.User{
-		ID:         "",
-		Name:       r.Name,
-		Email:      r.Email,
-		Password:   r.Password,
-		CreatedAt:  time.Now(),
-		ModifiedAt: time.Now(),
+func (r *SignUpRequest) toDomain() *domain.Credential {
+	return &domain.Credential{
+		UserID:   "",
+		Email:    r.Email,
+		Password: r.Password,
 	}
 }

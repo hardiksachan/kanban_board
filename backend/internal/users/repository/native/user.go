@@ -7,7 +7,7 @@ import (
 )
 
 type UserStore struct {
-	users []*domain.User
+	users []*domain.Credential
 	id    int
 }
 
@@ -15,7 +15,7 @@ func NewUserStore() *UserStore {
 	return &UserStore{id: 0}
 }
 
-func (s *UserStore) Insert(user *domain.User) (*domain.User, error) {
+func (s *UserStore) Insert(user *domain.Credential) (*domain.Credential, error) {
 	s.id++
 
 	user.ID = strconv.Itoa(s.id)
@@ -24,12 +24,12 @@ func (s *UserStore) Insert(user *domain.User) (*domain.User, error) {
 	return user, nil
 }
 
-func (s *UserStore) Update(user *domain.User) error {
+func (s *UserStore) Update(user *domain.Credential) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (s *UserStore) Remove(user *domain.User) error {
+func (s *UserStore) Remove(user *domain.Credential) error {
 	for i, u := range s.users {
 		if u.ID == user.ID {
 			s.users = append(s.users[:i], s.users[i+1:]...)
@@ -44,7 +44,7 @@ func (s *UserStore) Remove(user *domain.User) error {
 	}
 }
 
-func (s *UserStore) FindById(userId string) (*domain.User, error) {
+func (s *UserStore) FindById(userId string) (*domain.Credential, error) {
 	for _, user := range s.users {
 		if userId == user.ID {
 			return user, nil
@@ -58,7 +58,7 @@ func (s *UserStore) FindById(userId string) (*domain.User, error) {
 	}
 }
 
-func (s *UserStore) FindByEmail(email string) (*domain.User, error) {
+func (s *UserStore) FindByEmail(email string) (*domain.Credential, error) {
 	for _, user := range s.users {
 		if email == user.Email {
 			return user, nil

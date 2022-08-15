@@ -19,18 +19,18 @@ func NewUserMetadataStore(q *dao.Queries) *UserMetadataStore {
 	return &UserMetadataStore{q}
 }
 
-func (s *UserMetadataStore) Update(user *domain.UserMetadata) error {
+func (s *UserMetadataStore) Update(user *domain.User) (*domain.User, error) {
 	op := "postgres.UserMetadataStore.Update"
 
 	ctx := context.Background()
 
-	userUuid, err := shared.GetUUIDFromString(user.UserId)
+	userUuid, err := shared.GetUUIDFromString(user.UserID)
 	if err != nil {
-		return &users.Error{Code: users.EINVALID, Message: "Unable to parse UUID", Op: op, Err: err}
+		return nil, &users.Error{Code: users.EINVALID, Message: "Unable to parse UUID", Op: op, Err: err}
 	}
 
-	_, err = s.q.UpdateUserMetadata(ctx, dao.UpdateUserMetadataParams{
-		DisplayName: user.DisplayName,
+	dbUser, err := s.q.UpdateUserData(ctx, dao.UpdateUserDataParams{
+		Name: user.Name,
 		ProfileImageUrl: sql.NullString{
 			String: user.ImageURL,
 			Valid:  true,
@@ -38,12 +38,17 @@ func (s *UserMetadataStore) Update(user *domain.UserMetadata) error {
 		UserID: *userUuid,
 	})
 	if err != nil {
-		return &users.Error{Code: users.EINTERNAL, Op: op, Err: err}
+		return nil, &users.Error{Code: users.EINTERNAL, Op: op, Err: err}
 	}
-	return nil
+	return &domain.User{
+		UserID:   dbUser.UserID.String(),
+		Name:     dbUser.Name,
+		Email:    dbUser.Email,
+		ImageURL: dbUser.ProfileImageUrl.String,
+	}, nil
 }
 
-func (s *UserMetadataStore) Get(userID string) (*domain.UserMetadata, error) {
+func (s *UserMetadataStore) Get(userID string) (*domain.User, error) {
 	op := "postgres.UserMetadataStore.Get"
 
 	userUuid, err := shared.GetUUIDFromString(userID)
@@ -52,7 +57,7 @@ func (s *UserMetadataStore) Get(userID string) (*domain.UserMetadata, error) {
 	}
 
 	ctx := context.Background()
-	dbUser, err := s.q.GetUserMetadata(ctx, *userUuid)
+	dbUser, err := s.q.GetUserData(ctx, *userUuid)
 	if err == pgx.ErrNoRows {
 		return nil, &users.Error{Code: users.ENOTFOUND, Op: op, Err: err}
 	}
@@ -60,9 +65,10 @@ func (s *UserMetadataStore) Get(userID string) (*domain.UserMetadata, error) {
 		return nil, &users.Error{Code: users.EINTERNAL, Op: op, Err: err}
 	}
 
-	return &domain.UserMetadata{
-		UserId:      dbUser.UserID.String(),
-		DisplayName: dbUser.DisplayName,
-		ImageURL:    dbUser.ProfileImageUrl.String,
+	return &domain.User{
+		UserID:   dbUser.UserID.String(),
+		Name:     dbUser.Name,
+		ImageURL: dbUser.ProfileImageUrl.String,
+		Email:    dbUser.Email,
 	}, nil
 }

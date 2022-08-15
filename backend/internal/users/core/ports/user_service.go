@@ -6,17 +6,17 @@ import (
 )
 
 type UserService struct {
-	store UserMetadataStore
+	store UserStore
 }
 
-func NewUserService(store UserMetadataStore) *UserService {
+func NewUserService(store UserStore) *UserService {
 	return &UserService{store}
 }
 
-func (s *UserService) Update(user *domain.UserMetadata) error {
+func (s *UserService) Update(user *domain.User) error {
 	op := "ports.UserService.Update"
 
-	err := s.store.Update(user)
+	_, err := s.store.Update(user)
 	if err != nil {
 		return &users.Error{Op: op, Err: err}
 	}
@@ -24,7 +24,7 @@ func (s *UserService) Update(user *domain.UserMetadata) error {
 	return nil
 }
 
-func (s *UserService) Find(userId string) (*domain.UserMetadata, error) {
+func (s *UserService) Find(userId string) (*domain.User, error) {
 	op := "ports.UserService.Update"
 
 	data, err := s.store.Get(userId)

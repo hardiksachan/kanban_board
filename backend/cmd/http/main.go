@@ -9,7 +9,7 @@ import (
 	"github.com/hardiksachan/kanban_board/backend/internal/users/core/ports"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/handlers/auth"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/handlers/user"
-	"github.com/hardiksachan/kanban_board/backend/internal/users/repository/jwt"
+	"github.com/hardiksachan/kanban_board/backend/internal/users/repository"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/repository/postgres"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/repository/postgres/user/dao"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/repository/redis"
@@ -53,8 +53,8 @@ func main() {
 
 	authHandler := auth.NewAuthHandler(
 		ports.NewAuthService(
-			postgres.NewUserStore(pgq),
-			jwt.NewAccessTokenStore(jwtKey, time.Minute*10),
+			postgres.NewCredentialStore(pgq),
+			repository.NewAccessTokenStore(jwtKey, time.Minute*10),
 			redis.NewRefreshTokenStore(goredis.NewClient(&goredis.Options{
 				Addr:     rAddr,
 				Password: rPass,

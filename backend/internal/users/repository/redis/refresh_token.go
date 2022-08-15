@@ -10,86 +10,53 @@ import (
 	"time"
 )
 
-type RefreshTokenStore struct {
+type Claims struct {
+	ExpiresAt time.Time
+	Token     string
+	*domain.Credential
+}
+
+type RefreshStore struct {
 	client *redis.Client
 }
 
-func NewRefreshTokenStore(client *redis.Client) *RefreshTokenStore {
-	return &RefreshTokenStore{client}
+func NewRefreshTokenStore(client *redis.Client) *RefreshStore {
+	return &RefreshStore{client}
 }
 
-func (s *RefreshTokenStore) Encode(token *domain.RefreshToken) (string, error) {
-	return token.TokenID, nil
-}
+func (s *RefreshStore) Create(credential *domain.Credential) (*domain.RefreshToken, error) {
+	op := "redis.RefreshStore.Create"
 
-func (s *RefreshTokenStore) Create(userId string) (*domain.RefreshToken, error) {
-	op := "redis.RefreshTokenStore.Create"
-
-	refreshTokenId, err := uuid.NewV4()
+	token, err := uuid.NewV4()
 	if err != nil {
 		return nil, &users.Error{Op: op, Err: err}
 	}
 
 	expiration := time.Minute * 10
 
-	session := &domain.RefreshToken{
-		TokenID:   refreshTokenId.String(),
-		UserID:    userId,
-		ExpiresAt: time.Now().Add(expiration),
+	claims := Claims{
+		ExpiresAt:  time.Now().Add(expiration),
+		Credential: credential,
+		Token:      token.String(),
 	}
 
-	es, err := json.Marshal(*session)
+	encodedClaims, err := json.Marshal(claims)
 	if err != nil {
 		return nil, &users.Error{Op: op, Err: err}
 	}
 
-	err = s.client.Set(context.Background(), session.TokenID, string(es), expiration).Err()
+	err = s.client.Set(context.Background(), claims.Token, encodedClaims, expiration).Err()
 	if err != nil {
 		return nil, &users.Error{Op: op, Err: err}
 	}
 
-	return session, nil
+	return (*domain.RefreshToken)(&claims.Token), nil
 }
 
-func (s *RefreshTokenStore) VerifyAndDecode(encodedToken string) (*domain.RefreshToken, error) {
-	op := "redis.RefreshTokenStore.VerifyAndDecode"
+func (s *RefreshStore) Revoke(token *domain.RefreshToken) error {
+	op := "redis.RefreshStore.Revoke"
 
-	storedToken, err := s.Get(encodedToken)
-	if err != nil {
-		return nil, &users.Error{Op: op, Err: err}
-	}
-
-	if storedToken.ExpiresAt.Unix() < time.Now().Unix() {
-		return nil, nil
-	}
-
-	return storedToken, nil
-}
-
-func (s *RefreshTokenStore) Get(sessionId string) (*domain.RefreshToken, error) {
-	op := "redis.RefreshTokenStore.Get"
-
-	var refreshToken domain.RefreshToken
-	es, err := s.client.Get(context.Background(), sessionId).Result()
-	if err == redis.Nil {
-		return nil, &users.Error{Op: op, Code: users.ENOTFOUND, Message: "invalid refreshToken", Err: err}
-	}
-	if err != nil {
-		return nil, &users.Error{Op: op, Err: err}
-	}
-
-	err = json.Unmarshal([]byte(es), &refreshToken)
-	if err != nil {
-		return nil, &users.Error{Op: op, Err: err}
-	}
-
-	return &refreshToken, nil
-}
-
-func (s *RefreshTokenStore) Delete(tokenId string) error {
-	op := "redis.RefreshTokenStore.Delete"
-
-	err := s.client.Del(context.Background(), tokenId).Err()
+	err := s.client.Del(context.Background(), string(*token)).Err()
 	if err == redis.Nil {
 		return &users.Error{Op: op, Code: users.ENOTFOUND, Message: "invalid session TokenID", Err: err}
 	}
@@ -98,4 +65,28 @@ func (s *RefreshTokenStore) Delete(tokenId string) error {
 	}
 
 	return nil
+}
+
+func (s *RefreshStore) Verify(token *domain.RefreshToken) (*domain.Credential, error) {
+	op := "redis.RefreshStore.Verify"
+
+	claimsJSON, err := s.client.Get(context.Background(), string(*token)).Result()
+	if err == redis.Nil {
+		return nil, &users.Error{Op: op, Code: users.ENOTFOUND, Message: "invalid refreshToken", Err: err}
+	}
+	if err != nil {
+		return nil, &users.Error{Op: op, Err: err}
+	}
+
+	var claims Claims
+	err = json.Unmarshal([]byte(claimsJSON), &claims)
+	if err != nil {
+		return nil, &users.Error{Op: op, Err: err}
+	}
+
+	if claims.ExpiresAt.Unix() < time.Now().Unix() {
+		return nil, nil
+	}
+
+	return claims.Credential, nil
 }

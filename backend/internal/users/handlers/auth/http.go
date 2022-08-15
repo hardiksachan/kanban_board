@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"github.com/go-playground/validator/v10"
 	"github.com/hardiksachan/kanban_board/backend/internal/users"
+	"github.com/hardiksachan/kanban_board/backend/internal/users/core/domain"
 	"github.com/hardiksachan/kanban_board/backend/internal/users/core/ports"
 	jsonHelper "github.com/hardiksachan/kanban_board/backend/shared/json"
 	"github.com/hardiksachan/kanban_board/backend/shared/logging"
 	"net/http"
-	"time"
 )
 
-type AccessTokenKey struct {
+type CredentialKey struct {
 }
 
 type UserIDKey struct {
@@ -86,7 +86,7 @@ func (h *Handler) LogIn(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// call application layer to Log In user
-	storedUser, accessToken, refreshToken, err := h.auth.LogIn(rm.Email, rm.Password)
+	storedUser, refreshToken, accessToken, err := h.auth.LogIn(rm.Email, rm.Password)
 	if err != nil {
 		switch users.ErrorCode(err) {
 		case users.ECONFLICT, users.ENOTFOUND:
@@ -102,9 +102,9 @@ func (h *Handler) LogIn(rw http.ResponseWriter, r *http.Request) {
 	h.log.Debug(fmt.Sprintf("user logged in successfully. accessToken: %s, refreshToken: %s", accessToken, refreshToken))
 
 	json.NewEncoder(rw).Encode(LogInResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		UserId:       storedUser.ID,
+		AccessToken:  string(*accessToken),
+		RefreshToken: string(*refreshToken),
+		UserId:       storedUser.UserID,
 	})
 }
 
@@ -117,7 +117,9 @@ func (h *Handler) LogOut(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.auth.LogOut(rm.RefreshToken)
+	refreshToken := (domain.RefreshToken)(rm.RefreshToken)
+
+	err = h.auth.LogOut(&refreshToken)
 	if err != nil {
 		h.log.Warn(err.Error())
 		http.Error(rw, users.ErrorMessage(err), http.StatusInternalServerError)
@@ -137,7 +139,8 @@ func (h *Handler) RefreshAccessToken(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessToken, err := h.auth.RegenerateAccessToken(rm.RefreshToken)
+	refreshToken := (domain.RefreshToken)(rm.RefreshToken)
+	accessToken, err := h.auth.RegenerateAccessToken(&refreshToken)
 	if err != nil {
 		h.log.Warn(err.Error())
 		http.Error(rw, users.ErrorMessage(err), http.StatusInternalServerError)
@@ -146,21 +149,23 @@ func (h *Handler) RefreshAccessToken(rw http.ResponseWriter, r *http.Request) {
 
 	h.log.Debug(fmt.Sprintf("access token generated successfully. accessToken: %s", accessToken))
 	json.NewEncoder(rw).Encode(&RefreshAccessTokenResponse{
-		AccessToken: accessToken,
+		AccessToken: string(*accessToken),
 	})
 }
 
 func (h *Handler) AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		encodedAccessToken := r.Header.Get("Authorization")
-		if encodedAccessToken == "" {
+		accessTokenStr := r.Header.Get("Authorization")
+		if accessTokenStr == "" {
 			h.log.Debug(fmt.Sprintf("access token not provided"))
 
 			http.Error(rw, "no access token", http.StatusUnauthorized)
 			return
 		}
 
-		accessToken, err := h.auth.DecodeAccessToken(encodedAccessToken)
+		accessToken := (domain.AccessToken)(accessTokenStr)
+
+		credential, err := h.auth.DecodeAccessToken(&accessToken)
 		if err != nil {
 			switch users.ErrorCode(err) {
 			case users.EINVALID:
@@ -176,16 +181,9 @@ func (h *Handler) AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		if accessToken.ExpiresAt.Unix() < time.Now().Unix() {
-			h.log.Debug(fmt.Sprintf("Access Token timed out. accessToken: %+v", accessToken))
-
-			http.Error(rw, "session timed out", http.StatusUnauthorized)
-			return
-		}
-
 		ctx := r.Context()
-		ctx = context.WithValue(ctx, &AccessTokenKey{}, accessToken)
-		ctx = context.WithValue(ctx, &UserIDKey{}, accessToken.UserID)
+		ctx = context.WithValue(ctx, &CredentialKey{}, credential)
+		ctx = context.WithValue(ctx, &UserIDKey{}, credential.UserID)
 
 		next.ServeHTTP(rw, r.WithContext(ctx))
 	})

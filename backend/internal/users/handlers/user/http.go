@@ -52,10 +52,10 @@ func (h *Handler) Update(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.user.Update(&domain.UserMetadata{
-		UserId:      rUserID,
-		DisplayName: rm.DisplayName,
-		ImageURL:    rm.ProfileURL,
+	err = h.user.Update(&domain.User{
+		UserID:   rUserID,
+		Name:     rm.Name,
+		ImageURL: rm.ProfileURL,
 	})
 	if err != nil {
 		h.log.Debug(fmt.Sprintf("unable to update metadata. err: %s", err.Error()))
