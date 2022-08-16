@@ -7,6 +7,7 @@ import (
 	"github.com/hardiksachan/kanban_board/backend/internal/users/repository/postgres/user/dao"
 	"github.com/hardiksachan/kanban_board/backend/shared"
 	"github.com/jackc/pgx/v4"
+	"strings"
 )
 
 type CredentialStore struct {
@@ -24,6 +25,7 @@ func (s *CredentialStore) Insert(credential *domain.Credential) (*domain.Credent
 	credentialRow, err := s.q.InsertCredential(ctx, dao.InsertCredentialParams{
 		Email:    credential.Email,
 		Password: credential.Password,
+		Name:     strings.Split(credential.Email, "@")[0],
 	})
 	if err != nil {
 		return nil, &users.Error{Code: users.EINTERNAL, Op: op, Err: err}

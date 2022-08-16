@@ -15,7 +15,7 @@ WHERE email = $1;
 
 -- name: InsertCredential :one
 INSERT INTO "user"(email, password, name)
-VALUES ($1, $2, split_part($1, '@', 1))
+VALUES ($1, $2, $3)
 RETURNING user_id, email, password;
 
 -- name: UpdatePassword :one

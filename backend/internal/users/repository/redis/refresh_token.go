@@ -85,7 +85,7 @@ func (s *RefreshStore) Verify(token *domain.RefreshToken) (*domain.Credential, e
 	}
 
 	if claims.ExpiresAt.Unix() < time.Now().Unix() {
-		return nil, nil
+		return nil, &users.Error{Op: op, Message: "refresh token expired", Code: users.EEXPIRED}
 	}
 
 	return claims.Credential, nil

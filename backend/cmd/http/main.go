@@ -54,7 +54,7 @@ func main() {
 	authHandler := auth.NewAuthHandler(
 		ports.NewAuthService(
 			postgres.NewCredentialStore(pgq),
-			repository.NewAccessTokenStore(jwtKey, time.Minute*10),
+			repository.NewAccessTokenStore(jwtKey, time.Minute*2),
 			redis.NewRefreshTokenStore(goredis.NewClient(&goredis.Options{
 				Addr:     rAddr,
 				Password: rPass,

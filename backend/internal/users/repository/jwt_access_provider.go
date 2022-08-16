@@ -49,12 +49,22 @@ func (p *JWTAccessProvider) Verify(accessToken *domain.AccessToken) (*domain.Acc
 	token, err := jwt.ParseWithClaims(string(*accessToken), claims, func(token *jwt.Token) (interface{}, error) {
 		return p.jwtKey, nil
 	})
+
 	if err != nil {
+		if validationError, ok := (err).(*jwt.ValidationError); ok {
+			if validationError.Errors&jwt.ValidationErrorExpired != 0 {
+				return nil, &users.Error{Op: op, Code: users.EEXPIRED, Message: "access token has expired"}
+			}
+		}
 		return nil, &users.Error{Op: op, Err: err}
 	}
 
 	if !token.Valid {
-		return nil, nil
+		return nil, &users.Error{Op: op, Code: users.EINVALID, Message: "access token is invalid"}
+	}
+
+	if claims.StandardClaims.ExpiresAt < time.Now().Unix() {
+		return nil, &users.Error{Op: op, Code: users.EEXPIRED, Message: "access token has expired"}
 	}
 
 	return &claims.AccessClaims, nil

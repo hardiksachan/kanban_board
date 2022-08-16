@@ -112,13 +112,14 @@ func (q *Queries) GetUserData(ctx context.Context, userID uuid.UUID) (GetUserDat
 
 const insertCredential = `-- name: InsertCredential :one
 INSERT INTO "user"(email, password, name)
-VALUES ($1, $2, split_part($1, '@', 1))
+VALUES ($1, $2, $3)
 RETURNING user_id, email, password
 `
 
 type InsertCredentialParams struct {
 	Email    string
 	Password string
+	Name     string
 }
 
 type InsertCredentialRow struct {
@@ -128,7 +129,7 @@ type InsertCredentialRow struct {
 }
 
 func (q *Queries) InsertCredential(ctx context.Context, arg InsertCredentialParams) (InsertCredentialRow, error) {
-	row := q.db.QueryRow(ctx, insertCredential, arg.Email, arg.Password)
+	row := q.db.QueryRow(ctx, insertCredential, arg.Email, arg.Password, arg.Name)
 	var i InsertCredentialRow
 	err := row.Scan(&i.UserID, &i.Email, &i.Password)
 	return i, err
